@@ -10,6 +10,7 @@ namespace CoorHistoryBot
     class Place
     {
         const int MAX_COMPLAINTS = 5;
+        private long _id;
         private int _complaints; // жалобы, когда появляется 5 штук, запись о месте переносится в промежуточную таблицу, для модерации
         private Location _location;
         private List<PhotoSize> _photos;
@@ -34,6 +35,12 @@ namespace CoorHistoryBot
             _caption = caption;
         }
 
+        public Place(Location location, StringBuilder caption)
+        {
+            Location = location;
+            Caption = caption;
+        }
+
         public int Complaints
         {
             get
@@ -55,6 +62,12 @@ namespace CoorHistoryBot
         public List<PhotoSize> Photos { get => _photos; set => _photos = value; }
         public StringBuilder Caption { get => _caption; set => _caption = value; }
         public User User { get => _user; set => _user = value; }
+
+        public long Id
+        {
+            get { return _id; }
+            set { _id = value; }
+        }
 
         private void LoadToListOfModeration()
         {
