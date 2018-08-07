@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
+using System.Configuration;
 using System.Device.Location;
+using System.Drawing;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using CoorHistoryBot.Model;
@@ -75,7 +79,7 @@ namespace CoorHistoryBot
                         }                        
                         else if (message.Type == Telegram.Bot.Types.Enums.MessageType.Photo)
                         {
-                            if (_currentUsers.Contains(update.Message.From))
+                            if (IsContainsUser(update))
                             {
                                 Place findPlace = null;
                                 foreach (var buildingPlace in _buildingPlaces)
@@ -91,7 +95,13 @@ namespace CoorHistoryBot
                                     findPlace = new Place(update.Message.From);
                                     _buildingPlaces.Add(findPlace);
                                 }
-                                findPlace.Photos.AddRange(update.Message.Photo);
+                                var test = await Bot.GetFileAsync(update.Message.Photo[message.Photo.Length - 1].FileId);
+                                byte[] photo;
+                                using (var client = new WebClient())
+                                {
+                                    photo = await client.DownloadDataTaskAsync(new Uri($"https://api.telegram.org/file/bot{ConfigurationManager.AppSettings["BotToken"]}/{test.FilePath}"));
+                                }
+                                findPlace.Photos.Add(photo);
                             }
                         }
                         else if (message.Type == Telegram.Bot.Types.Enums.MessageType.Location)
@@ -114,7 +124,7 @@ namespace CoorHistoryBot
 
         private async Task DefaultActionAsync(Update update)
         {
-            if (_currentUsers.Contains(update.Message.From))
+            if (IsContainsUser(update))
             {
                 Place findPlace = null;
                 foreach (var buildingPlace in _buildingPlaces)
@@ -165,9 +175,9 @@ namespace CoorHistoryBot
             await Bot.SendTextMessageAsync(update.Message.Chat.Id, newListBuilder.ToString());
         }
 
-        private void TakeLocationAsync(Update update)
+        private async void TakeLocationAsync(Update update)
         {            
-            if (_currentUsers.Contains(update.Message.From))
+            if (IsContainsUser(update))
             {
                 Place findPlace = null;
                 foreach (var buildingPlace in _buildingPlaces)
@@ -183,7 +193,14 @@ namespace CoorHistoryBot
                     findPlace = new Place(update.Message.From);
                     _buildingPlaces.Add(findPlace);
                 }
-                findPlace.Location = update.Message.Location;
+                if (findPlace.Caption.Length > 0 && findPlace.Photos.Count > 0)
+                {
+                    findPlace.Location = update.Message.Location;
+                }
+                else
+                {
+                    await Bot.SendTextMessageAsync(update.Message.Chat.Id, "К сожалению, вы не указали фото или описание, отправьте недостающее и затем попробуйсте снова!");
+                }
                 SaveDataToDb(findPlace);
             }
             else
@@ -219,15 +236,44 @@ namespace CoorHistoryBot
         private void SaveDataToDb(Place newPlace)
         {
             _buildingPlaces.Remove(newPlace);
-            // adding place to db
+            _dbModel.AddNewPlace(newPlace);
         }
 
         private async Task OkActionAsync(Update update)
         {
-            if (_currentUsers.Contains(update.Message.From))
-            {                
-                await Bot.SendTextMessageAsync(update.Message.Chat.Id, "Отправьте геолокацию этого места");
+            if (IsContainsUser(update))
+            {
+                Place findPlace = null;
+                foreach (var buildingPlace in _buildingPlaces)
+                {
+                    if (buildingPlace.User == update.Message.From)
+                    {
+                        findPlace = buildingPlace;
+                        break;
+                    }
+                }
+                if (findPlace.Caption.Length > 0 && findPlace.Photos.Count > 0)
+                {
+                    await Bot.SendTextMessageAsync(update.Message.Chat.Id, "Отправьте геолокацию этого места");
+                }
+                else
+                {
+                    await Bot.SendTextMessageAsync(update.Message.Chat.Id, "К сожалению, вы не указали фото или описание, отправьте недостающее и затем попробуйсте снова!");
+                }
             }
+        }
+
+        private bool IsContainsUser(Update update)
+        {
+            bool isContains = false;
+            foreach (var user in _currentUsers)
+            {
+                if (user.Id == update.Message.From.Id)
+                {
+                    isContains = true;
+                }
+            }
+            return isContains;
         }
 
         private async Task StatsActionAsync(Update update)
@@ -237,7 +283,7 @@ namespace CoorHistoryBot
 
         private async Task AddActionAsync(Update update)
         {
-            if (!_currentUsers.Contains(update.Message.From))
+            if (!IsContainsUser(update))
             {
                 _currentUsers.Add(update.Message.From);
             }

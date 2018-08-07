@@ -13,7 +13,7 @@ namespace CoorHistoryBot
         private long _id;
         private int _complaints; // жалобы, когда появляется 5 штук, запись о месте переносится в промежуточную таблицу, для модерации
         private Location _location;
-        private List<PhotoSize> _photos;
+        private List<byte[]> _photos;
         private StringBuilder _caption;
         private User _user;
 
@@ -22,11 +22,11 @@ namespace CoorHistoryBot
             _user = user;
             _complaints = 0;
             _location = null;
-            _photos = new List<PhotoSize>();
+            _photos = new List<byte[]>();
             _caption = new StringBuilder();
         }
 
-        public Place(Location location, List<PhotoSize> photos, StringBuilder caption, User user)
+        public Place(Location location, List<byte[]> photos, StringBuilder caption, User user)
         {
             _user = user;
             _complaints = 0;
@@ -59,7 +59,7 @@ namespace CoorHistoryBot
         }
 
         public Location Location { get => _location; set => _location = value; }
-        public List<PhotoSize> Photos { get => _photos; set => _photos = value; }
+        public List<byte[]> Photos { get => _photos; set => _photos = value; }
         public StringBuilder Caption { get => _caption; set => _caption = value; }
         public User User { get => _user; set => _user = value; }
 

@@ -37,7 +37,6 @@ namespace CoorHistoryBot.Model
             DbDataReader reader = null;
             try
             {
-                _connection.Open();
                 var command = _connection.CreateCommand();
                 command.CommandText = commandText;
                 reader = command.ExecuteReader();
@@ -101,7 +100,6 @@ namespace CoorHistoryBot.Model
             DbDataReader reader = null;
             try
             {
-                _connection.Open();
                 var command = _connection.CreateCommand();
                 command.CommandText = commandText;
                 reader = command.ExecuteReader();
@@ -128,7 +126,6 @@ namespace CoorHistoryBot.Model
             DbDataReader reader = null;
             try
             {
-                _connection.Open();
                 var command = _connection.CreateCommand();
                 command.CommandText = commandText;
                 reader = command.ExecuteReader();
@@ -155,7 +152,6 @@ namespace CoorHistoryBot.Model
             DbDataReader reader = null;
             try
             {
-                _connection.Open();
                 var command = _connection.CreateCommand();
                 command.CommandText = commandText;
                 reader = command.ExecuteReader();
@@ -173,6 +169,138 @@ namespace CoorHistoryBot.Model
             }
 
             return newPhotoList;
+        }
+
+        public void AddNewPlace(Place newPlace)
+        {
+            InsertAddress(newPlace.Location, newPlace.Caption, newPlace.User);
+            InsertPhotos(newPlace.Photos, GetAddressId(newPlace));
+        }
+
+        private long GetAddressId(Place newPlace)
+        {
+            long id = -1;
+            string commandText = $"SELECT Id FROM Addresses WHERE Longitude = '{(double)(newPlace.Location.Longitude)}' AND Latitude = '{(double)(newPlace.Location.Latitude)}' AND Caption = '{newPlace.Caption}'";
+            DbDataReader reader = null;
+            try
+            {
+                var command = _connection.CreateCommand();
+                command.CommandText = commandText;
+                reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    id = (long)reader["Id"];
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+            finally
+            {
+                if (reader != null && !reader.IsClosed)
+                {
+                    reader.Close();
+                }
+            }
+            if (id == -1)
+            {
+                throw new Exception("Could not get id address");
+            }
+            return id;
+        }
+
+        private void InsertPhotos(List<byte[]> newPlacePhotos, long addressId)
+        {
+            byte[] lastPhotoBytes = newPlacePhotos[newPlacePhotos.Count - 1];
+            newPlacePhotos.Remove(lastPhotoBytes);
+
+            var command = _factory.CreateCommand();
+            command.Connection = _connection;
+
+            command.CommandText = $"INSERT INTO Photos(Photo, Address_Id) VALUES ('{lastPhotoBytes}', '{addressId}')";
+            try
+            {
+                command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
+            if (newPlacePhotos.Count > 0)
+            {
+                InsertPhotos(newPlacePhotos, addressId);
+            }
+        }
+
+        private void InsertAddress(Location newPlaceLocation, StringBuilder newPlaceCaption, User newPlaceUser)
+        {
+            long userId = GetUserId(newPlaceUser.Username);
+
+
+            var command = _factory.CreateCommand();
+            command.Connection = _connection;
+
+            command.CommandText = $"INSERT INTO Addresses(Latitude, Longitude, Caption, User_Id) VALUES ('{(double)(newPlaceLocation.Latitude)}', '{(double)(newPlaceLocation.Longitude)}', '{newPlaceCaption.ToString()}', '{userId}')";
+            try
+            {
+                command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+
+        private long GetUserId(string username)
+        {
+            long id = -1;
+            string commandText = $"SELECT Id FROM Users WHERE Username = '{username}'";
+            DbDataReader reader = null;
+            try
+            {
+                var command = _connection.CreateCommand();
+                command.CommandText = commandText;
+                reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    id = (long) reader["Id"];
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+            finally
+            {
+                if (reader != null && !reader.IsClosed)
+                {
+                    reader.Close();
+                }
+            }
+            if (id == -1)
+            {
+                AddNewUser(username);
+                id = GetUserId(username);
+            }
+            return id;
+        }
+
+        private void AddNewUser(string username)
+        {
+            var command = _factory.CreateCommand();
+            command.Connection = _connection;
+
+            command.CommandText = $"INSERT INTO Users VALUES ('' ,'{username}')";
+            try
+            {
+                command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
         }
 
         public void Dispose()
