@@ -292,7 +292,7 @@ namespace CoorHistoryBot.Model
             var command = _factory.CreateCommand();
             command.Connection = _connection;
 
-            command.CommandText = $"INSERT INTO Users VALUES ('' ,'{username}')";
+            command.CommandText = $"INSERT INTO Users(Username) VALUES ('{username}')";
             try
             {
                 command.ExecuteNonQuery();
